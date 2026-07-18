@@ -16,8 +16,11 @@ except ImportError:
 DATASET_REPO = "Paing1213/vip-database-storage"
 DB_FILE = "vip_database.json"
 
- ADMIN_PASSWORD = "my_admin_pass_123"
-print(f"Admin Password is: {ADMIN_PASSWORD}")
+# # 🔐 Admin Password ကို ဒီမှာ သတ်မှတ်ပါ
+ADMIN_PASSWORD = "admin123"
+print(f"✅ Admin Password is: '{ADMIN_PASSWORD}'")  # ပိုပြီးရှင်းလင်းအောင်ပြင်ထား
+# 🔑 Hugging Face Token (ကိုယ်ပိုင် Token ထည့်ပါ)
+HF_TOKEN = os.environ.get("HF_TOKEN", "your_hf_token_here")
 api = HfApi(token=HF_TOKEN)
 
 def load_vip_database():
@@ -47,18 +50,27 @@ VIP_PASSWORDS = load_vip_database()
 
 def register_or_renew_vip(admin_pass, user_password, days_to_add):
     global VIP_PASSWORDS
-    if admin_pass.strip() != ADMIN_PASSWORD: return "❌ Admin Password မမှန်ကန်ပါ။"
+    print(f"🔍 Admin pass entered: '{admin_pass}'")  # Debugging
+    print(f"🔍 Expected admin pass: '{ADMIN_PASSWORD}'")  # Debugging
+    
+    if admin_pass.strip() != ADMIN_PASSWORD.strip():
+        return "❌ Admin Password မမှန်ကန်ပါ။"
+    
     u_pass = user_password.strip()
-    if not u_pass: return "⚠️ User Password ရိုက်ထည့်ပါ။"
+    if not u_pass:
+        return "⚠️ User Password ရိုက်ထည့်ပါ။"
 
     VIP_PASSWORDS = load_vip_database()
     current_time = datetime.datetime.now()
+    
     if u_pass in VIP_PASSWORDS:
         try:
             old_expiry = datetime.datetime.strptime(VIP_PASSWORDS[u_pass]["valid_until"], "%Y-%m-%d")
             new_expiry = (old_expiry if old_expiry > current_time else current_time) + datetime.timedelta(days=int(days_to_add))
-        except: new_expiry = current_time + datetime.timedelta(days=int(days_to_add))
-    else: new_expiry = current_time + datetime.timedelta(days=int(days_to_add))
+        except:
+            new_expiry = current_time + datetime.timedelta(days=int(days_to_add))
+    else:
+        new_expiry = current_time + datetime.timedelta(days=int(days_to_add))
 
     VIP_PASSWORDS[u_pass] = {"valid_until": new_expiry.strftime("%Y-%m-%d")}
     save_vip_database(VIP_PASSWORDS)
