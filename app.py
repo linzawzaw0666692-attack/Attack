@@ -17,6 +17,7 @@ DATASET_REPO = "Paing1213/vip-database-storage"
 DB_FILE = "vip_database.json"
 
  ADMIN_PASSWORD = "my_admin_pass_123"
+print(f"Admin Password is: {ADMIN_PASSWORD}")
 api = HfApi(token=HF_TOKEN)
 
 def load_vip_database():
