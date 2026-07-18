@@ -16,8 +16,12 @@ except ImportError:
 DATASET_REPO = "Paing1213/vip-database-storage"
 DB_FILE = "vip_database.json"
 
- ADMIN_PASSWORD = "my_admin_pass_123"
-print(f"Admin Password is: {ADMIN_PASSWORD}")
+# 🔐 Admin Password ကို ဒီမှာ သတ်မှတ်ပါ
+ADMIN_PASSWORD = "my_admin_pass_123"
+print(f"✅ Admin Password is: {ADMIN_PASSWORD}")
+
+# 🔑 Hugging Face Token (ကိုယ်ပိုင် Token ထည့်ပါ)
+HF_TOKEN = os.environ.get("HF_TOKEN", "your_hf_token_here")
 api = HfApi(token=HF_TOKEN)
 
 def load_vip_database():
