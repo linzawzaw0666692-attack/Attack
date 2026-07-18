@@ -13,75 +13,9 @@ try:
 except ImportError:
     raise ImportError("ကျေးဇူးပြု၍ requirements.txt တွင် pydub ထည့်ပေးပါ။")
 
-DATASET_REPO = "Paing1213/vip-database-storage"
-DB_FILE = "vip_database.json"
-
-# # 🔐 Admin Password ကို ဒီမှာ သတ်မှတ်ပါ
-ADMIN_PASSWORD = "admin123"
-print(f"✅ Admin Password is: '{ADMIN_PASSWORD}'")  # ပိုပြီးရှင်းလင်းအောင်ပြင်ထား
 # 🔑 Hugging Face Token (ကိုယ်ပိုင် Token ထည့်ပါ)
 HF_TOKEN = os.environ.get("HF_TOKEN", "your_hf_token_here")
 api = HfApi(token=HF_TOKEN)
-
-def load_vip_database():
-    if not HF_TOKEN or not os.path.exists(DB_FILE):
-        if os.path.exists(DB_FILE):
-            try:
-                with open(DB_FILE, "r", encoding="utf-8") as f: return json.load(f)
-            except: return {}
-        return {}
-    try:
-        from huggingface_hub import hf_hub_download
-        filepath = hf_hub_download(repo_id=DATASET_REPO, filename=DB_FILE, repo_type="dataset", token=HF_TOKEN)
-        with open(filepath, "r", encoding="utf-8") as f: return json.load(f)
-    except: return {}
-
-def save_vip_database(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-    if HF_TOKEN:
-        try:
-            try: api.create_repo(repo_id=DATASET_REPO, repo_type="dataset", private=True, exist_ok=True)
-            except: pass
-            api.upload_file(path_or_fileobj=DB_FILE, path_in_repo=DB_FILE, repo_id=DATASET_REPO, repo_type="dataset")
-        except: pass
-
-VIP_PASSWORDS = load_vip_database()
-
-def register_or_renew_vip(admin_pass, user_password, days_to_add):
-    global VIP_PASSWORDS
-    print(f"🔍 Admin pass entered: '{admin_pass}'")  # Debugging
-    print(f"🔍 Expected admin pass: '{ADMIN_PASSWORD}'")  # Debugging
-    
-    if admin_pass.strip() != ADMIN_PASSWORD.strip():
-        return "❌ Admin Password မမှန်ကန်ပါ။"
-    
-    u_pass = user_password.strip()
-    if not u_pass:
-        return "⚠️ User Password ရိုက်ထည့်ပါ။"
-
-    VIP_PASSWORDS = load_vip_database()
-    current_time = datetime.datetime.now()
-    
-    if u_pass in VIP_PASSWORDS:
-        try:
-            old_expiry = datetime.datetime.strptime(VIP_PASSWORDS[u_pass]["valid_until"], "%Y-%m-%d")
-            new_expiry = (old_expiry if old_expiry > current_time else current_time) + datetime.timedelta(days=int(days_to_add))
-        except:
-            new_expiry = current_time + datetime.timedelta(days=int(days_to_add))
-    else:
-        new_expiry = current_time + datetime.timedelta(days=int(days_to_add))
-
-    VIP_PASSWORDS[u_pass] = {"valid_until": new_expiry.strftime("%Y-%m-%d")}
-    save_vip_database(VIP_PASSWORDS)
-    return f"✅ အောင်မြင်ပါသည်။ Password [{u_pass}] အား {new_expiry.strftime('%Y-%m-%d')} အထိ VIP တိုးလိုက်ပါပြီ။"
-
-def check_vip_status_ui():
-    db = load_vip_database()
-    if not db: return "ယခုလက်ရှိတွင် VIP User မရှိသေးပါ။"
-    out = "📋 လက်ရှိ VIP စာရင်း -\n\n"
-    for k, v in db.items(): out += f"🔑 Password: {k} | 📅 ကုန်ရက်: {v['valid_until']}\n"
-    return out
 
 def format_srt_time(seconds):
     if seconds < 0: seconds = 0
@@ -144,7 +78,7 @@ async def process_voice_generation(
     text, surveyed_text, filename, s1_voice, s2_voice, s3_voice,
     style, srt_type, tone, speed, volume, progress=gr.Progress()
 ):
-    if not text.strip(): return None, None, None, gr.update(visible=False)
+    if not text.strip(): return None, None, None
 
     processed_text = text.replace("--", " ").replace("—", " ").replace("…", " ")
     
@@ -167,7 +101,7 @@ async def process_voice_generation(
     total_sentences = len(sentences)
     
     if total_sentences == 0:
-        return None, None, None, gr.update(visible=False)
+        return None, None, None
 
     progress(0.2, desc=f"⏳ စာသားများကို အသံအဖြစ် ပြောင်းလဲနေပါသည် ({total_sentences} ကြောင်း)...")
 
@@ -239,7 +173,7 @@ async def process_voice_generation(
     progress(0.9, desc="💾 ဖိုင်များကို သိမ်းဆည်းနေပါသည်...")
 
     if len(combined_audio) == 0:
-        return None, None, None, gr.update(visible=False)
+        return None, None, None
 
     combined_audio.export(output_mp3, format="mp3")
 
@@ -251,7 +185,7 @@ async def process_voice_generation(
             f.write("\n\n")
 
     progress(1.0, desc="✅ အားလုံး ပြီးစီးပါပြီ!")
-    return output_mp3, output_mp3, output_srt, gr.update(visible=False)
+    return output_mp3, output_mp3, output_srt
 
 def tts_wrapper(text, rules_text, filename, s1_voice, s2_voice, s3_voice, style, srt_type, tone, speed, volume, progress=gr.Progress()):
     return asyncio.run(tts_wrapper_async(text, rules_text, filename, s1_voice, s2_voice, s3_voice, style, srt_type, tone, speed, volume, progress))
@@ -307,7 +241,6 @@ with gr.Blocks(title="Myanmar Audio Studio", css=custom_css) as demo:
             
         input_text = gr.Textbox(label="စာသား", placeholder="မင်္ဂလာပါ။", lines=4)
         generate_btn = gr.Button("🚀 အသံဖိုင် ဖန်တီးမည် (Generate)", variant="primary")
-        tg_connect_btn = gr.Button("🔥 VIP ဝယ်ယူရန် Telegram သို့ ဆက်သွယ်မည်", variant="stop", visible=False)
         
         output_audio = gr.Audio(label="🎧 ထွက်လာသော အသံဖိုင်", type="filepath")
         output_mp3_file = gr.File(label="💾 MP3 ဒေါင်းလုဒ်")
@@ -316,20 +249,7 @@ with gr.Blocks(title="Myanmar Audio Studio", css=custom_css) as demo:
         generate_btn.click(
             fn=tts_wrapper, 
             inputs=[input_text, rules, file_name, s1_voice, s2_voice, s3_voice, style, srt_type, tone, speed, volume], 
-            outputs=[output_audio, output_mp3_file, output_srt_file, tg_connect_btn]
+            outputs=[output_audio, output_mp3_file, output_srt_file]
         )
-        
-        with gr.Accordion("👑 Admin Control Panel", open=False):
-            with gr.Row():
-                adm_pass = gr.Textbox(label="🔐 Admin Security Password", type="password")
-                u_pass_input = gr.Textbox(label="🔑 User VIP Password")
-                days_input = gr.Slider(minimum=1, maximum=365, value=30, step=1, label="⏳ ရက်ပေါင်း")
-            register_btn = gr.Button("✨ VIP သတ်မှတ်မည်", variant="secondary")
-            admin_output = gr.Textbox(label="📢 ရလဒ်")
-            status_btn = gr.Button("📋 VIP စာရင်းကြည့်မည်")
-            status_output = gr.TextArea(label="စာရင်းများ", lines=5)
-            register_btn.click(fn=register_or_renew_vip, inputs=[adm_pass, u_pass_input, days_input], outputs=admin_output)
-            status_btn.click(fn=check_vip_status_ui, inputs=None, outputs=status_output)
 
 demo.launch()
-                  
